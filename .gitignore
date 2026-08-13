@@ -1,2 +1,33 @@
-.tools/
-deploy/installer/build/
+# Local Python environments
+.env/
+.venv/
+venv/
+.training-venv/
+.training-runs/
+
+# Python cache / bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE / editor state
+.idea/
+.vscode/
+
+# Runtime configuration and generated state
+config/
+log/
+pid
+setup.toml
+
+# Bundled/generated runtime assets
+core/ocr/baas_ocr_client/bin/
+module/ExploreTasks/
+
+# Local build/package artifacts
+*.exe
+
+# Generated/mojibake description exports
+src/descriptions/ja_JP/*.html
+src/descriptions/ko_KR/*.html
+src/descriptions/zh_CN/*.html
