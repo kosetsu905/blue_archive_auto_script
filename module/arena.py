@@ -38,7 +38,7 @@ def implement(self):
         fight(self, True)
         to_tactical_challenge(self, True)
         if tickets > 1:
-            self.next_time = 55
+            self.next_time = 25
             return True
         elif tickets == 1:
             collect_tactical_challenge_reward(self)
