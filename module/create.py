@@ -37,6 +37,10 @@ def implement(self):
                 material_adequate = create_phase(self, 1)
                 if not material_adequate:
                     create_flag = False
+                    self.logger.info("Return to crafting list after material inadequate.")
+                    to_manufacture_store(self)
+                    status = receive_objects_and_check_crafting_list_status(self, use_acceleration_ticket)
+                    need_acc_collect = False
                     break
                 if create_max_phase >= 2:
                     confirm_select_node(self, 0)
@@ -266,6 +270,7 @@ def to_manufacture_store(self, skip_first_screenshot=False):
         "create_phase-3-wait-to-check-node"
     ]
     img_possibles = {
+        "create_material-list": (50, 45),
         "create_start-crafting": (1115, 657),
         "create_start-crafting-notice": (769, 501),
         "create_select-node": (1115, 657),
