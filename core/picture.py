@@ -63,6 +63,7 @@ def co_detect(
     self.last_click_position = (0, 0)
     self.last_click_name = ""
     start_time = time.time()
+    deadline = time.monotonic() + time_out
     feature_last_appear_time = start_time
     last_check_pkg_time = start_time
 
@@ -79,7 +80,7 @@ def co_detect(
         else:
             self.update_screenshot_array()
         # time out check
-        if current_time - start_time > time_out:
+        if time.monotonic() >= deadline:
             raise FunctionCallTimeout("Co_detect function timeout reached.")
 
         # package check
@@ -93,7 +94,11 @@ def co_detect(
                     raise PackageIncorrect(pkgName)
 
         # loading check
-        color.wait_loading(self)
+        color.wait_loading(self, time_out=max(0, deadline - time.monotonic()))
+        if not self.flag_run:
+            raise RequestHumanTakeOver("Request Human Take Over.")
+        if time.monotonic() >= deadline:
+            raise FunctionCallTimeout("Co_detect function timeout reached.")
 
         # exit the stage if any end feature is matched
         for rgb_feature in rgb_ends:
@@ -140,10 +145,24 @@ def co_detect(
                         and self.last_click_position[0] == click[0] and self.last_click_position[1] == click[1]
                         and self.last_click_name == img_feature):
                         break
-                    self.logger.info(f"Image feature: {img_feature} -> Click @ ({click[0]},{click[1]})")
                     if click[0] >= 0 and click[1] >= 0:
-                        self.last_click_time = feature_last_appear_time
-                        self.click(click[0], click[1])
+                        feature_name = img_feature[0] if isinstance(img_feature, tuple) else img_feature
+                        activity_entry = feature_name in ("activity_enter1", "activity_enter2", "activity_enter3")
+                        if activity_entry:
+                            self.update_screenshot_array()
+                            if not self.flag_run:
+                                raise RequestHumanTakeOver("Request Human Take Over.")
+                            if time.monotonic() >= deadline:
+                                raise FunctionCallTimeout("Co_detect function timeout reached.")
+                            if not match_img_feature(self, img_feature, threshold, rgb_diff):
+                                self.logger.info(f"Activity entry changed before click: {feature_name}; retry detection.")
+                                break
+                        self.logger.info(f"Image feature: {img_feature} -> Click @ ({click[0]},{click[1]})")
+                        self.last_click_time = time.time()
+                        if activity_entry:
+                            self.click(click[0], click[1], wait_over=True)
+                        else:
+                            self.click(click[0], click[1])
                         self.last_click_position = (click[0], click[1])
                         self.last_click_name = img_feature
                     break

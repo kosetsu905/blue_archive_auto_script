@@ -6,18 +6,24 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from core.exception import FunctionCallTimeout
+
 if TYPE_CHECKING:
     from core.Baas_thread import Baas_thread
 
 
-def wait_loading(self: Baas_thread) -> None:
+def wait_loading(self: Baas_thread, time_out=None) -> None:
     startTime = time.time()
+    deadline = None if time_out is None else time.monotonic() + time_out
     while (self.flag_run and
            match_rgb_feature(self, "loadingNotWhite") and match_rgb_feature(self, "loadingWhite")):
+        if deadline is not None and time.monotonic() >= deadline:
+            raise FunctionCallTimeout("Loading timeout reached.")
         self.update_screenshot_array()
         loadingTime = round(time.time() - startTime, 3)
         self.logger.info("Detected loading, loading time: " + str(loadingTime))
-        time.sleep(self.screenshot_interval)
+        remaining = self.screenshot_interval if deadline is None else max(0, deadline - time.monotonic())
+        time.sleep(min(self.screenshot_interval, remaining))
     return
 
 

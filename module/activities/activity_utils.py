@@ -1,3 +1,4 @@
+from core.exception import FunctionCallTimeout, RequestHumanTakeOver
 from core.image import compare_image
 from module.explore_tasks.task_utils import *
 
@@ -15,7 +16,9 @@ def get_stage_data(self):
     return stage_data
 
 
-def to_activity(self, region=None, skip_first_screenshot=False):
+def to_activity(self, region=None, skip_first_screenshot=False, time_out=None):
+    # An explicit timeout covers both the activity menu and its selected tab.
+    deadline = None if time_out is None else time.monotonic() + time_out
     img_possibles = {
         "main_page_get-character": (640, 360),
         "activity_enter1": (1196, 195),
@@ -47,7 +50,9 @@ def to_activity(self, region=None, skip_first_screenshot=False):
         "activity_exchange-confirm": (673, 603),
     }
     img_ends = "activity_menu"
-    picture.co_detect(self, None, None, img_ends, img_possibles, skip_first_screenshot=skip_first_screenshot)
+    picture.co_detect(self, None, None, img_ends, img_possibles,
+                      skip_first_screenshot=skip_first_screenshot,
+                      time_out=600 if time_out is None else time_out)
 
     img_possibles = {
         "story": {
@@ -82,7 +87,49 @@ def to_activity(self, region=None, skip_first_screenshot=False):
     }
     img_possibles = img_possibles[region]
     img_ends = img_ends[region]
-    picture.co_detect(self, None, None, img_ends, img_possibles, skip_first_screenshot=True)
+    remaining = 600 if deadline is None else deadline - time.monotonic()
+    if not self.flag_run:
+        raise RequestHumanTakeOver("Request Human Take Over.")
+    if remaining <= 0:
+        raise FunctionCallTimeout("Entering activity timed out.")
+    picture.co_detect(self, None, None, img_ends, img_possibles,
+                      skip_first_screenshot=True, time_out=remaining)
+
+
+def _search_activity_task(self, region, *args, **kwargs):
+    """Retry only navigation/search, never an already completed sweep or fight."""
+    task_number = kwargs["target_str_index"] + 1
+    for attempt in range(4):  # Initial search, then three recovery attempts.
+        if not self.flag_run:
+            raise RequestHumanTakeOver("Request Human Take Over.")
+        try:
+            if attempt:
+                self.logger.warning(f"Activity {region} task {task_number}: retry {attempt}/3, returning to main page.")
+                self.to_main_page(time_out=30)
+                if not self.flag_run:
+                    raise RequestHumanTakeOver("Request Human Take Over.")
+                to_activity(self, region, time_out=30)
+            if not self.flag_run:
+                raise RequestHumanTakeOver("Request Human Take Over.")
+            self.update_screenshot_array()
+            if not self.flag_run:
+                raise RequestHumanTakeOver("Request Human Take Over.")
+            result = swipe_search_target_str(self, *args, **kwargs)
+        except FunctionCallTimeout as exc:
+            if not self.flag_run:
+                raise RequestHumanTakeOver("Request Human Take Over.")
+            self.logger.warning(f"Activity {region} task {task_number}: navigation/search timed out: {exc}")
+            continue
+        if not self.flag_run:
+            raise RequestHumanTakeOver("Request Human Take Over.")
+        if result is not None:
+            return result
+        self.logger.warning(f"Activity {region} task {task_number} not found; the activity may be incorrect or ended.")
+
+    message = f"Activity {region} task {task_number}: all 3 retries failed. Stopping and keeping the current screen."
+    self.logger.error(message)
+    self.signal_stop()
+    raise RequestHumanTakeOver(message)
 
 
 # sweep
@@ -197,8 +244,9 @@ def to_mission_task_info(self, target_index, total_mission):
         "Global_ko-kr": (-384, 0, 43, 36),
         "JP": (-384, -8, 43, 28),
     }
-    p = swipe_search_target_str(
+    p = _search_activity_task(
         self,
+        "mission",
         "activity_mission-enter-task-button",
         (1060, 143, 1195, 686),
         0.8,
@@ -435,8 +483,9 @@ def build_activity_task_name_list(total_task):
 
 def to_story_task_info(self, target_index, total_story):
     possible_strs = build_activity_task_name_list(total_story)
-    p = swipe_search_target_str(
+    p = _search_activity_task(
         self,
+        "story",
         "activity_story-enter-task-button",
         (1067, 149, 1195, 686),
         0.8,

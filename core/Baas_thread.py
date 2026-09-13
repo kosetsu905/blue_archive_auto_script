@@ -601,7 +601,7 @@ class Baas_thread:
         push(self.logger, self.config, title)
         LogTraceback(title, message, self)
 
-    def to_main_page(self, skip_first_screenshot=False):
+    def to_main_page(self, skip_first_screenshot=False, time_out=600):
         img_reactions = {
             # 'normal_task_fight-pause': (908, 508),
             # 'normal_task_retreat-notice': (768, 507),
@@ -692,7 +692,7 @@ class Baas_thread:
             # "fighting_feature": (1226, 51)
         }
         picture.co_detect(self, ["main_page"], rgb_possibles, None, img_reactions, skip_first_screenshot,
-                          tentative_click=True)
+                          tentative_click=True, time_out=time_out)
 
     def init_image_resource(self):
         return position.init_image_data(self)
