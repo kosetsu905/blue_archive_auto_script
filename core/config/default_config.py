@@ -3550,7 +3550,7 @@ STATIC_DEFAULT_CONFIG = '''
         ]
     },
     "current_game_activity": {
-        "CN": "AHundredYearsofOneFlowerLetsGetRealwithaWaterBattle",
+        "CN": "ThePromiseOfTheSummerSky",
         "Global": "SecretMidnightParty",
         "JP": "HighlanderRailroadExplosionIncident"
     },
